@@ -1,0 +1,13 @@
+# Python wheel dependencies (from your folder)
+et_xmlfile-*.whl
+numpy-*.whl
+openpyxl-*.whl
+pandas-*.whl
+python_dateutil-*.whl
+pytz-*.whl
+six-*.whl
+torch-*.whl
+tzdata-*.whl
+
+# VS Code folder
+.vscode/

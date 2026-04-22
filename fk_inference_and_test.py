@@ -1,315 +1,22 @@
 
-
-# import torch
-# import torch.nn as nn
-# import pandas as pd
-# import numpy as np
-
-# # =========================
-# # CONFIG
-# # =========================
-
-# BUNDLE_PATH = r"C:\Users\tavis\OneDrive\Documents\BARC\work\fk_full_bundle.pth"
-
-# TEST_FILE = r"C:\Users\tavis\OneDrive\Documents\BARC\work\newtest_remaining.xlsx"
-
-# OUTPUT_FILE = r"C:\Users\tavis\OneDrive\Documents\BARC\work\newfk_predictions.xlsx"
-
-# INPUT_COLS  = ["Leg1","Leg2","Leg3","Leg4","Leg5","Leg6"]
-# OUTPUT_COLS = ["X","Y","Z","Thetax","Thetay","Thetaz"]
-
-# DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
-# print("Using device:", DEVICE)
-
-# # =========================
-# # MODEL ARCHITECTURE
-# # =========================
-
-# class FKNet(nn.Module):
-
-#     def __init__(self):
-
-#         super().__init__()
-
-#         self.net = nn.Sequential(
-
-#             nn.Linear(6,128),
-#             nn.LayerNorm(128),
-#             nn.GELU(),
-
-#             nn.Linear(128,256),
-#             nn.LayerNorm(256),
-#             nn.GELU(),
-
-#             nn.Linear(256,256),
-#             nn.LayerNorm(256),
-#             nn.GELU(),
-
-#             nn.Linear(256,128),
-#             nn.LayerNorm(128),
-#             nn.GELU(),
-
-#             nn.Linear(128,64),
-#             nn.GELU(),
-
-#             nn.Linear(64,6)
-
-#         )
-
-#     def forward(self,x):
-#         return self.net(x)
-
-# # =========================
-# # LOAD BUNDLE FILE
-# # =========================
-
-# print("Loading bundle file...")
-
-# checkpoint = torch.load(BUNDLE_PATH, map_location=DEVICE)
-
-# model = FKNet().to(DEVICE)
-
-# model.load_state_dict(checkpoint["model_state_dict"])
-
-# model.eval()
-
-# x_mean = checkpoint["x_mean"]
-# x_std  = checkpoint["x_std"]
-
-# y_mean = checkpoint["y_mean"]
-# y_std  = checkpoint["y_std"]
-
-# print("Bundle loaded successfully")
-
-# # =========================
-# # LOAD TEST DATA
-# # =========================
-
-# print("Loading test dataset...")
-
-# test_df = pd.read_excel(TEST_FILE)
-
-# Xt = test_df[INPUT_COLS].values.astype(np.float32)
-# Yt = test_df[OUTPUT_COLS].values.astype(np.float32)
-
-# # =========================
-# # NORMALIZE INPUT
-# # =========================
-
-# Xt_n = (Xt - x_mean) / x_std
-
-# Xt_n = torch.tensor(Xt_n, dtype=torch.float32).to(DEVICE)
-
-# # =========================
-# # MODEL PREDICTION
-# # =========================
-
-# print("Running FK predictions...")
-
-# with torch.no_grad():
-
-#     pred_n = model(Xt_n).cpu().numpy()
-
-# pred = pred_n * y_std + y_mean
-
-# # =========================
-# # ERROR CALCULATION
-# # =========================
-
-# trans_err = np.linalg.norm(pred[:,0:3] - Yt[:,0:3], axis=1)
-
-# rot_err = np.linalg.norm(pred[:,3:6] - Yt[:,3:6], axis=1)
-
-# mean_trans_err = np.mean(trans_err)
-
-# mean_rot_err = np.mean(rot_err)
-
-# max_trans_err = np.max(trans_err)
-
-# max_rot_err = np.max(rot_err)
-
-# # threshold statistics
-
-# trans_above_01 = np.sum(trans_err > 0.1)
-
-# rot_above_01 = np.sum(rot_err > 0.1)
-
-# trans_within_01_percent = np.mean(trans_err < 0.1) * 100
-
-# rot_within_01_percent = np.mean(rot_err < 0.1) * 100
-
-# print("\n===== Accuracy Report =====")
-
-# print("Mean translation error (mm):", mean_trans_err)
-
-# print("Mean rotation error:", mean_rot_err)
-
-# print("Max translation error:", max_trans_err)
-
-# print("Max rotation error:", max_rot_err)
-
-# print("\nPoints with translation error > 0.1 mm:", trans_above_01)
-
-# print("Points with rotation error > 0.1:", rot_above_01)
-
-# print("\n% points within 0.1 mm translation:", trans_within_01_percent)
-
-# print("% points within 0.1 rotation:", rot_within_01_percent)
-
-# # =========================
-# # SAVE RESULTS
-# # =========================
-
-# results_df = pd.DataFrame()
-
-# for col in INPUT_COLS:
-#     results_df[col] = test_df[col]
-
-# for i,col in enumerate(OUTPUT_COLS):
-#     results_df["True_"+col] = Yt[:,i]
-
-# for i,col in enumerate(OUTPUT_COLS):
-#     results_df["Pred_"+col] = pred[:,i]
-
-# results_df["Translation_Error_mm"] = trans_err
-# results_df["Rotation_Error"] = rot_err
-
-# # summary sheet
-
-# summary_df = pd.DataFrame({
-
-#     "Metric":[
-#         "Mean Translation Error (mm)",
-#         "Mean Rotation Error",
-#         "Max Translation Error",
-#         "Max Rotation Error",
-#         "Points with Translation Error > 0.1 mm",
-#         "Points with Rotation Error > 0.1",
-#         "% within 0.1 mm Translation",
-#         "% within 0.1 Rotation"
-#     ],
-
-#     "Value":[
-#         mean_trans_err,
-#         mean_rot_err,
-#         max_trans_err,
-#         max_rot_err,
-#         trans_above_01,
-#         rot_above_01,
-#         trans_within_01_percent,
-#         rot_within_01_percent
-#     ]
-
-# })
-
-# print("Saving results...")
-
-# with pd.ExcelWriter(OUTPUT_FILE, engine="openpyxl") as writer:
-
-#     results_df.to_excel(writer,
-#                         sheet_name="Predictions",
-#                         index=False)
-
-#     summary_df.to_excel(writer,
-#                         sheet_name="Summary",
-#                         index=False)
-
-# print("Saved to:", OUTPUT_FILE)
-
-# # =========================
-# # MANUAL INPUT MODE
-# # =========================
-
-# def manual_fk_predict():
-
-#     print("\n===== Manual FK Prediction Mode =====")
-
-#     print("Enter 6 leg lengths")
-
-#     print("Example: 450 455 448 460 452 451")
-
-#     print("Type 'exit' to quit\n")
-
-#     while True:
-
-#         user_input = input("Leg lengths > ")
-
-#         if user_input.lower().strip() == "exit":
-#             break
-
-#         try:
-
-#             legs = list(map(float,
-#                             user_input.strip().split()))
-
-#             if len(legs) != 6:
-#                 print("Enter exactly 6 values")
-#                 continue
-
-#             X = np.array(legs,
-#                          dtype=np.float32).reshape(1,-1)
-
-#             Xn = (X - x_mean) / x_std
-
-#             Xn_t = torch.tensor(Xn,
-#                                 dtype=torch.float32).to(DEVICE)
-
-#             with torch.no_grad():
-
-#                 pred_n = model(Xn_t).cpu().numpy()
-
-#             pred = pred_n * y_std + y_mean
-
-#             pred = pred[0]
-
-#             # print("\nPredicted Pose")
-
-#             # print("X      :", pred[0])
-#             # print("Y      :", pred[1])
-#             # print("Z      :", pred[2])
-#             # print("Thetax :", pred[3])
-#             # print("Thetay :", pred[4])
-#             # print("Thetaz :", pred[5])
-#             print(f"{pred[0]},{pred[1]},{pred[2]},{pred[3]},{pred[4]},{pred[5]}")
-
-#             print()
-
-#         except Exception as e:
-
-#             print("Invalid input:", e)
-
-# # =========================
-# # RUN MANUAL MODE
-# # =========================
-
-# # manual_fk_predict()
-# if __name__ == "__main__":
-#     manual_fk_predict()
-
-
-# ###############################################################################################################################################
-
-# ##############################################################################################################################################
-
-
-
 import torch
 import torch.nn as nn
-import pandas as pd
 import numpy as np
 import sys
 
 # =========================
-# CONFIG (same folder paths)
+# CONFIG
 # =========================
 
 BUNDLE_PATH = "fk_full_bundle.pth"
-TEST_FILE = "newtest_remaining.xlsx"
-OUTPUT_FILE = "newfk_predictions.xlsx"
+INPUT_FILE  = "input.txt"
+OUTPUT_FILE = "output.txt"
+CHECKSUM_FILE = "checksum_output.txt"
 
-INPUT_COLS  = ["Leg1","Leg2","Leg3","Leg4","Leg5","Leg6"]
-OUTPUT_COLS = ["X","Y","Z","Thetax","Thetay","Thetaz"]
+MIN_LEG = 168.0
+MAX_LEG = 240.0
+
+CHECKSUM_ENABLED = False   # 🔁 TOGGLE HERE
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -318,32 +25,23 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 # =========================
 
 class FKNet(nn.Module):
-
     def __init__(self):
-
         super().__init__()
-
         self.net = nn.Sequential(
-
             nn.Linear(6,128),
             nn.LayerNorm(128),
             nn.GELU(),
-
             nn.Linear(128,256),
             nn.LayerNorm(256),
             nn.GELU(),
-
             nn.Linear(256,256),
             nn.LayerNorm(256),
             nn.GELU(),
-
             nn.Linear(256,128),
             nn.LayerNorm(128),
             nn.GELU(),
-
             nn.Linear(128,64),
             nn.GELU(),
-
             nn.Linear(64,6)
         )
 
@@ -357,101 +55,218 @@ class FKNet(nn.Module):
 checkpoint = torch.load(BUNDLE_PATH, map_location=DEVICE)
 
 model = FKNet().to(DEVICE)
-
 model.load_state_dict(checkpoint["model_state_dict"])
-
 model.eval()
 
 x_mean = checkpoint["x_mean"]
 x_std  = checkpoint["x_std"]
-
 y_mean = checkpoint["y_mean"]
 y_std  = checkpoint["y_std"]
 
 # =========================
-# EXCEL MODE
+# VALIDATION
 # =========================
 
-def run_excel_pipeline():
+def is_valid_legs(legs):
+    return len(legs) == 6 and all(MIN_LEG <= l <= MAX_LEG for l in legs)
 
-    test_df = pd.read_excel(TEST_FILE)
+# =========================
+# CHECKSUM FUNCTION
+# =========================
 
-    Xt = test_df[INPUT_COLS].values.astype(np.float32)
-    Yt = test_df[OUTPUT_COLS].values.astype(np.float32)
+def compute_difference(prev, curr):
 
-    Xt_n = (Xt - x_mean) / x_std
-    Xt_n = torch.tensor(Xt_n, dtype=torch.float32).to(DEVICE)
+    trans_diff = np.linalg.norm(curr[0:3] - prev[0:3])
+    rot_diff   = np.linalg.norm(curr[3:6] - prev[3:6])
 
-    with torch.no_grad():
-        pred_n = model(Xt_n).cpu().numpy()
+    return trans_diff, rot_diff
 
-    pred = pred_n * y_std + y_mean
+# =========================
+# FILE STREAM MODE
+# =========================
 
-    trans_err = np.linalg.norm(pred[:,0:3] - Yt[:,0:3], axis=1)
-    rot_err   = np.linalg.norm(pred[:,3:6] - Yt[:,3:6], axis=1)
+def run_txt_pipeline():
 
-    results_df = pd.DataFrame()
+    print("\n📡 Streaming input processing...\n")
 
-    for col in INPUT_COLS:
-        results_df[col] = test_df[col]
+    prev_pose = None
 
-    for i,col in enumerate(OUTPUT_COLS):
-        results_df["True_"+col] = Yt[:,i]
+    out_file = CHECKSUM_FILE if CHECKSUM_ENABLED else OUTPUT_FILE
 
-    for i,col in enumerate(OUTPUT_COLS):
-        results_df["Pred_"+col] = pred[:,i]
+    with open(INPUT_FILE, "r") as f_in, open(out_file, "a") as f_out:
 
-    results_df["Translation_Error_mm"] = trans_err
-    results_df["Rotation_Error"] = rot_err
+        for line in f_in:
 
-    results_df.to_excel(OUTPUT_FILE,index=False)
+            if not line.strip():
+                continue
 
-    print("Excel prediction complete")
+            try:
+                legs = list(map(float, line.strip().split()))
+            except:
+                f_out.write("INVALID\n")
+                continue
+
+            if not is_valid_legs(legs):
+                f_out.write("INVALID\n")
+                continue
+
+            X = np.array(legs, dtype=np.float32).reshape(1,-1)
+            Xn = (X - x_mean) / x_std
+            Xn_t = torch.tensor(Xn, dtype=torch.float32).to(DEVICE)
+
+            with torch.no_grad():
+                pred_n = model(Xn_t).cpu().numpy()
+
+            pred = (pred_n * y_std + y_mean)[0]
+
+            # ================= CHECKSUM =================
+            if CHECKSUM_ENABLED and prev_pose is not None:
+
+                trans_diff, rot_diff = compute_difference(prev_pose, pred)
+
+                f_out.write(
+                    f"POSE {' '.join(map(str,pred))} | "
+                    f"dT={trans_diff:.4f} dR={rot_diff:.4f}\n"
+                )
+
+            else:
+                f_out.write(" ".join(map(str, pred)) + "\n")
+
+            prev_pose = pred
+
+    print(f"✅ Output saved to {out_file}\n")
 
 # =========================
 # MANUAL MODE
 # =========================
 
-def manual_fk_predict():
+def manual_interactive():
+
+    print(f"\nEnter 6 leg values ({MIN_LEG} to {MAX_LEG}) or type 'exit'")
+
+    prev_pose = None
+
+    while True:
+
+        user_input = input("Legs > ")
+
+        if user_input.lower() == "exit":
+            break
+
+        try:
+            legs = list(map(float, user_input.split()))
+        except:
+            print("Invalid input")
+            continue
+
+        if not is_valid_legs(legs):
+            print("❌ Out of range")
+            continue
+
+        X = np.array(legs, dtype=np.float32).reshape(1,-1)
+        Xn = (X - x_mean) / x_std
+        Xn_t = torch.tensor(Xn, dtype=torch.float32).to(DEVICE)
+
+        with torch.no_grad():
+            pred_n = model(Xn_t).cpu().numpy()
+
+        pred = (pred_n * y_std + y_mean)[0]
+
+        print("Pred:", pred)
+
+        out_file = CHECKSUM_FILE if CHECKSUM_ENABLED else OUTPUT_FILE
+
+        with open(out_file, "a") as f:
+
+            if CHECKSUM_ENABLED and prev_pose is not None:
+
+                trans_diff, rot_diff = compute_difference(prev_pose, pred)
+
+                f.write(
+                    f"MANUAL {' '.join(map(str,pred))} | "
+                    f"dT={trans_diff:.4f} dR={rot_diff:.4f}\n"
+                )
+
+            else:
+                f.write(" ".join(map(str, pred)) + "\n")
+
+        prev_pose = pred
+
+# =========================
+# C++ MODE
+# =========================
+
+def manual_stdin():
 
     user_input = sys.stdin.read().strip()
 
-    legs = list(map(float,user_input.split()))
+    try:
+        legs = list(map(float, user_input.split()))
+    except:
+        print("ERROR")
+        return
 
-    X = np.array(legs,
-                 dtype=np.float32).reshape(1,-1)
+    if not is_valid_legs(legs):
+        print("ERROR")
+        return
 
+    X = np.array(legs, dtype=np.float32).reshape(1,-1)
     Xn = (X - x_mean) / x_std
-
-    Xn_t = torch.tensor(Xn,
-                        dtype=torch.float32).to(DEVICE)
+    Xn_t = torch.tensor(Xn, dtype=torch.float32).to(DEVICE)
 
     with torch.no_grad():
-
         pred_n = model(Xn_t).cpu().numpy()
 
-    pred = pred_n * y_std + y_mean
+    pred = (pred_n * y_std + y_mean)[0]
 
-    pred = pred[0]
-
-    print(f"{pred[0]},{pred[1]},{pred[2]},{pred[3]},{pred[4]},{pred[5]}")
+    print(" ".join(map(str, pred)))
 
 # =========================
-# ENTRY POINT
+# MENU
+# =========================
+
+def menu():
+
+    while True:
+
+        print("\n===== FK Prediction Menu =====")
+        print("1. Stream from input.txt")
+        print("2. Manual input")
+        print("3. Toggle Checksum")
+        print("4. Exit")
+
+        choice = input("Select option: ")
+
+        global CHECKSUM_ENABLED
+
+        if choice == "1":
+            run_txt_pipeline()
+
+        elif choice == "2":
+            manual_interactive()
+
+        elif choice == "3":
+            CHECKSUM_ENABLED = not CHECKSUM_ENABLED
+            print(f"Checksum is now: {CHECKSUM_ENABLED}")
+
+        elif choice == "4":
+            break
+
+        else:
+            print("Invalid choice")
+
+# =========================
+# ENTRY
 # =========================
 
 if __name__ == "__main__":
 
-    if len(sys.argv) > 1 and sys.argv[1] == "excel":
-
-        run_excel_pipeline()
-
-    elif len(sys.argv) > 1 and sys.argv[1] == "manual":
-
-        manual_fk_predict()
+    if len(sys.argv) > 1 and sys.argv[1] == "manual":
+        manual_stdin()
 
     else:
-
-        print("Usage:")
-        print("python fk_predict.py excel")
-        print("python fk_predict.py manual")
+        menu()
+        
+        
+        
+        ####   python -m pip install --no-index torch-2.2.2+cpu-cp310-cp310-win_amd64.whl
