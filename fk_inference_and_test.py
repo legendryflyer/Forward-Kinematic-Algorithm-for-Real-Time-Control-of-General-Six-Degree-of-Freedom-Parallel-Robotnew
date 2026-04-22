@@ -270,3 +270,5 @@ if __name__ == "__main__":
         
         
         ####   python -m pip install --no-index torch-2.2.2+cpu-cp310-cp310-win_amd64.whl
+        ####   https://download.pytorch.org/whl/torch/
+        ####   torch-2.2.2+cpu-cp310-cp310-win_amd64.whl
